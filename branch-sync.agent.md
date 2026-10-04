@@ -19,20 +19,24 @@ The helper script is `.branch-sync/sync-branch.sh` (run it from the repo root).
 1. Use only the helper script for git history operations. Do NOT run raw `git rebase`,
    `git reset --hard`, or `git push` yourself (`git add` and `git status/log/show/diff` are fine).
 2. Never push. At the end tell the developer to review the result and run
-   `.branch-sync/sync-branch.sh push` themselves. The helper uses a normal, non-force push.
+   `.branch-sync/sync-branch.sh push` themselves. The helper uses `--force-with-lease`,
+   never plain `--force`.
 3. Never resolve a conflict by dropping one side wholesale. Combine the intent of BOTH
    sides. If intent is unclear, stop and ask the developer.
 4. During a rebase: `--ours` = target branch, `--theirs` = the developer's commit.
 5. Never edit files inside submodules. Submodule conflicts are pointer conflicts only.
 
 ## Workflow
-1. Run `.branch-sync/sync-branch.sh check`. Summarize: behind/ahead counts, dirty worktree,
+1. Run `.branch-sync/sync-branch.sh check`. Identify the checked-out branch as the source
+   branch and the detected `origin/HEAD` branch as the target branch. Summarize:
+   behind/ahead counts, dirty worktree,
    files changed on both sides, submodule pointer changes.
    - Dirty worktree -> ask the developer to commit/stash. Stop.
    - Behind = 0 -> report "up to date". Stop.
 2. If the branch has many commits (> ~5) and the developer agrees, suggest
    `.branch-sync/sync-branch.sh squash "<message>"` first so conflicts are resolved once.
-3. Run `.branch-sync/sync-branch.sh rebase` (it creates a backup branch automatically).
+3. Run `.branch-sync/sync-branch.sh rebase` (it fetches the latest target first, creates a
+   backup branch automatically, and verifies the source is based on that target afterward).
 4. On conflicts (exit code 2), for every conflicted file:
    - Read the conflict markers and surrounding code.
    - Use `git log <target> -- <file>` and `git show` to understand the upstream change.

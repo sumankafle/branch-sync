@@ -53,9 +53,9 @@ Works with many submodules. **Nothing is ever committed**: files are hidden via 
    4. resolve conflicts file by file, `git add`, `continue`
    5. verify nothing was lost, run your tests, and give a report
 4. **Review** the result: `git diff origin/main...HEAD` and the agent's report.
-5. **Push yourself only after review:** `.branch-sync/sync-branch.sh push` uses a normal, non-force push.
-  After a rebase of an already-pushed branch, a normal push will be rejected; stop there and
-  use the GitLab UI or your team's approved process rather than force-pushing.
+5. **Push yourself only after review:** `.branch-sync/sync-branch.sh push` uses
+  `--force-with-lease`, never plain `--force`. The lease prevents overwriting newer remote
+  work that you have not fetched.
    GitLab updates the MR and re-runs the pipeline.
 
 **Without Copilot** you can use the script directly:
@@ -95,7 +95,7 @@ After each rebase the script prints a **lost-work check**: every file you change
   `git remote set-head origin -a`.
 - GitLab's "Rebase" button on the MR only works when there are no conflicts; this tool is for
   the conflict case. If the MR is set to "fast-forward merge", you must rebase before merging.
-- The tool never force-pushes. A normal push may be rejected after rebasing an already-pushed branch; follow your team's approved GitLab process in that case.
+- The tool never uses plain `--force`; it uses `--force-with-lease` only for the current source branch.
 - `git rerere` is enabled (repo-local), so if you rebase the same branch again, previously
   resolved conflicts are replayed automatically.
 

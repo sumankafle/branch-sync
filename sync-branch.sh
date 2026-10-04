@@ -46,6 +46,14 @@ current_branch() {
   git symbolic-ref --quiet --short HEAD || die "Detached HEAD - checkout a branch first"
 }
 
+source_branch() {
+  current_branch
+}
+
+target_branch() {
+  default_branch
+}
+
 is_clean() {
   [[ -z "$(git status --porcelain)" ]]
 }
@@ -63,8 +71,9 @@ fetch_all() {
 cmd_check() {
   fetch_all
   local current_branch_name target_branch_name merge_base behind_count ahead_count
-  current_branch_name=$(current_branch)
-  target_branch_name=$(default_branch)
+  current_branch_name=$(source_branch)
+  target_branch_name=$(target_branch)
+  [[ "$current_branch_name" != "$target_branch_name" ]] || die "Current branch '$current_branch_name' is the target branch. Checkout a feature branch first."
   merge_base=$(git merge-base HEAD "$REMOTE/$target_branch_name")
   read -r behind_count ahead_count < <(git rev-list --left-right --count "$REMOTE/$target_branch_name...HEAD")
 
@@ -99,19 +108,23 @@ cmd_check() {
 cmd_rebase() {
   is_clean || die "Worktree not clean. Commit or stash first."
   fetch_all
-  local br tgt backup old_base
-  br=$(current_branch); tgt=$(default_branch)
-  old_base=$(git merge-base HEAD "$REMOTE/$tgt")
-  backup="backup/${br//\//-}-$(date +%Y%m%d-%H%M%S)"
-  git branch "$backup" HEAD
-  printf 'backup=%s\nold_base=%s\ntarget=%s\n' "$backup" "$old_base" "$tgt" > "$STATE_FILE"
-  echo "Backup created: $backup  (undo: sync-branch.sh restore $backup)"
+  local source_branch_name target_branch_name backup_branch old_merge_base
+  source_branch_name=$(source_branch)
+  target_branch_name=$(target_branch)
+  [[ "$source_branch_name" != "$target_branch_name" ]] || die "Current branch '$source_branch_name' is the target branch. Checkout a feature branch first."
+  old_merge_base=$(git merge-base HEAD "$REMOTE/$target_branch_name")
+  backup_branch="backup/${source_branch_name//\//-}-$(date +%Y%m%d-%H%M%S)"
+  git branch "$backup_branch" HEAD
+  printf 'backup=%s\nold_base=%s\ntarget=%s\n' "$backup_branch" "$old_merge_base" "$target_branch_name" > "$STATE_FILE"
+  echo "Source branch: $source_branch_name"
+  echo "Target branch: $REMOTE/$target_branch_name"
+  echo "Backup created: $backup_branch  (undo: sync-branch.sh restore $backup_branch)"
 
   git config rerere.enabled true      # remember conflict resolutions
   # Reuse the recorded resolution for review, but do not stage it silently.
   git config rerere.autoupdate false
 
-  if git rebase "$REMOTE/$tgt"; then
+  if git rebase "$REMOTE/$target_branch_name"; then
     finish
   else
     report_conflicts
@@ -147,6 +160,8 @@ finish() {
   [[ -f "$STATE_FILE" ]] || { echo "(no state file - skipping verification)"; return 0; }
   # shellcheck disable=SC1090
   source "$STATE_FILE"
+  [[ "$(git rev-parse HEAD~0)" != "$(git rev-parse "$REMOTE/$target")" ]] || die "Rebase result is exactly the target branch; source commits may be missing. Restore the backup and review."
+  git merge-base --is-ancestor "$REMOTE/$target" HEAD || die "Rebase verification failed: source branch is not based on the latest target branch."
   echo; echo "== range-diff: your OLD commits (<) vs NEW commits (>)  [= same, ! changed] =="
   git range-diff "$old_base..$backup" "$REMOTE/$target..HEAD" || true
   echo; echo "== Lost-work check: files YOU changed that now have NO diff vs $REMOTE/$target =="
@@ -195,7 +210,7 @@ cmd_squash() {
 
 cmd_push() {
   is_clean || die "Worktree not clean."
-  git push "$REMOTE" "$(current_branch)"
+  git push --force-with-lease "$REMOTE" "$(source_branch)"
 }
 
 command="${1:-check}"
