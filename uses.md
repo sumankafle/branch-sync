@@ -18,6 +18,35 @@ Reload VS Code with **Developer: Reload Window**, open Copilot Chat, choose **Ag
 mode, and select **branch-sync**. The user installation makes the agent available in
 every workspace for that VS Code user. On Windows, run the commands from Git Bash or WSL.
 
+### Keep the tool in `/opt`
+
+The tool can live outside all GitLab repositories, including `/opt`. Only the initial
+clone needs administrator permission; run the installer as your normal user:
+
+```bash
+sudo git clone https://github.com/sumankafle/branch-sync.git /opt/branch-sync
+sudo chown -R "$USER:$USER" /opt/branch-sync
+cd /opt/branch-sync
+./install.sh --user
+```
+
+To update it later:
+
+```bash
+cd /opt/branch-sync
+git pull --ff-only
+./install.sh --user
+```
+
+Install the helper into a project from `/opt` with:
+
+```bash
+/opt/branch-sync/install.sh /path/to/your/gitlab-project
+```
+
+Do not run `install.sh --user` with `sudo`; otherwise the agent may be installed for
+root instead of your VS Code user.
+
 To install it in one project instead:
 
 ```bash

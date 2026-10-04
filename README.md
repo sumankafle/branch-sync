@@ -40,6 +40,26 @@ Works with many submodules. **Nothing is ever committed**: files are hidden via 
    `.github/agents/branch-sync.agent.md` or the user prompts file exists and that your
    Copilot extension is up to date.
 
+### Optional: keep the tool in `/opt`
+
+The source folder can live outside any GitLab repository:
+
+```bash
+sudo git clone https://github.com/sumankafle/branch-sync.git /opt/branch-sync
+sudo chown -R "$USER:$USER" /opt/branch-sync
+cd /opt/branch-sync
+./install.sh --user
+```
+
+Then install the helper into any GitLab project:
+
+```bash
+/opt/branch-sync/install.sh /path/to/your/repo
+```
+
+Use the commands as your normal user after the initial clone. Do not run the user-level
+install with `sudo`, or the agent may be installed for root instead of your VS Code user.
+
 ## Daily use
 
 **Before opening or updating a MR:**
